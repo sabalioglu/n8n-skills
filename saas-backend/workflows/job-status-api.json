@@ -1,0 +1,246 @@
+{
+  "name": "📊 Job Status API - Multi-Tenant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "v1/job-status/:jobId",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [240, 400],
+      "id": "status-webhook",
+      "name": "Status API Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// JWT Validation for Status Check\nconst webhookData = $json;\nconst headers = webhookData.headers || {};\nconst params = webhookData.params || {};\n\n// Extract JWT token\nconst authHeader = headers.authorization || headers.Authorization || '';\nconst token = authHeader.replace(/^Bearer\\s+/i, '').trim();\n\nif (!token) {\n  throw new Error('UNAUTHORIZED: Missing authorization token');\n}\n\n// Decode JWT\ntry {\n  const parts = token.split('.');\n  if (parts.length !== 3) {\n    throw new Error('Invalid JWT format');\n  }\n  \n  const payload = JSON.parse(\n    Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString()\n  );\n  \n  const userId = payload.sub;\n  const userEmail = payload.email;\n  \n  if (!userId) {\n    throw new Error('Invalid token: missing user ID');\n  }\n  \n  // Get job ID from URL params\n  const jobId = params.jobId;\n  \n  if (!jobId) {\n    throw new Error('Missing job ID in request');\n  }\n  \n  console.log('✅ Status check request');\n  console.log('   User:', userEmail);\n  console.log('   Job ID:', jobId);\n  \n  return [{\n    json: {\n      userId: userId,\n      userEmail: userEmail,\n      jobId: jobId,\n      requestTimestamp: new Date().toISOString()\n    }\n  }];\n  \n} catch (error) {\n  throw new Error('UNAUTHORIZED: Invalid JWT token - ' + error.message);\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400],
+      "id": "jwt-validator-status",
+      "name": "Validate JWT"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/video_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "job_id",
+              "value": "=eq.{{ $json.jobId }}"
+            },
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.userId }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 400],
+      "id": "get-job",
+      "name": "Get Job from DB"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "id": "job-exists",
+      "name": "Job Exists?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"JOB_NOT_FOUND\",\n  \"message\": \"Job not found or you don't have permission to access it\"\n}",
+        "responseCode": 404,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1120, 280],
+      "id": "job-not-found",
+      "name": "❌ Job Not Found"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Job Status Response\nconst job = $json[0]; // Supabase returns array\n\n// Calculate processing time if completed\nlet processingTime = null;\nif (job.started_at && job.completed_at) {\n  const start = new Date(job.started_at);\n  const end = new Date(job.completed_at);\n  processingTime = Math.round((end - start) / 1000); // seconds\n}\n\n// Estimate time remaining (rough estimate)\nlet estimatedTimeRemaining = null;\nif (job.status !== 'completed' && job.status !== 'failed') {\n  const elapsed = job.started_at ? \n    Math.round((new Date() - new Date(job.started_at)) / 1000) : 0;\n  const totalEstimate = job.duration * 4; // Rough: 4 seconds per video second\n  estimatedTimeRemaining = Math.max(0, totalEstimate - elapsed);\n}\n\nconst output = {\n  success: true,\n  jobId: job.job_id,\n  \n  // Status\n  status: job.status,\n  progress: job.progress_percentage,\n  currentStep: job.current_step,\n  \n  // Product info\n  productName: job.product_name,\n  ugcType: job.ugc_type,\n  targetAudience: job.target_audience,\n  \n  // Video specs\n  duration: job.duration,\n  totalScenes: job.total_scenes,\n  aspectRatio: job.aspect_ratio,\n  platform: job.platform,\n  \n  // Results (only if completed)\n  videoUrl: job.video_url || null,\n  thumbnailUrl: job.thumbnail_url || null,\n  \n  // Error (only if failed)\n  error: job.error_message || null,\n  \n  // Timing\n  createdAt: job.created_at,\n  startedAt: job.started_at,\n  completedAt: job.completed_at,\n  processingTimeSeconds: processingTime,\n  estimatedTimeRemaining: estimatedTimeRemaining,\n  \n  // Credits\n  creditsCharged: job.credits_cost,\n  creditsRefunded: job.credits_refunded || 0,\n  \n  // Metadata\n  category: job.product_category,\n  character: job.character_model ? {\n    age: job.character_model.age,\n    gender: job.character_model.gender,\n    style: job.character_model.style\n  } : null\n};\n\nconsole.log('✅ Job status:', job.status, '-', job.progress_percentage + '%');\n\nreturn [{ json: output }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 520],
+      "id": "format-response",
+      "name": "Format Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-cache"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1340, 520],
+      "id": "return-status",
+      "name": "✅ Return Status"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/usage_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_ANON_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Validate JWT').item.json.userId }}\",\n  \"endpoint\": \"/v1/job-status\",\n  \"method\": \"GET\",\n  \"auth_method\": \"jwt\",\n  \"job_id\": \"{{ $('Validate JWT').item.json.jobId }}\",\n  \"status_code\": 200\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 520],
+      "id": "log-usage",
+      "name": "Log API Usage"
+    }
+  ],
+  "connections": {
+    "Status API Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate JWT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate JWT": {
+      "main": [
+        [
+          {
+            "node": "Get Job from DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Job from DB": {
+      "main": [
+        [
+          {
+            "node": "Job Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job Exists?": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ Job Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "✅ Return Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Return Status": {
+      "main": [
+        [
+          {
+            "node": "Log API Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
