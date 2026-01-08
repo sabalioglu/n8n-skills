@@ -1,0 +1,347 @@
+{
+  "name": "After Merge - DYNAMIC with Gemini AI",
+  "nodes": [
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-exp",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a Video Production Strategist.\n\n## 📋 INPUT DATA\n\n**Product Information:**\n- Product Name: {{ $('ParseFormData').first().json.productName }}\n- Product Category: {{ $input.all()[0].json.product.category }}\n- Product Description: {{ $('ParseFormData').first().json.productDescription }}\n- Target Audience: {{ $('ParseFormData').first().json.targetAudience }}\n- Platform: {{ $('ParseFormData').first().json.platform }}\n\n**User's Video Length Request:**\n- Selected: {{ $('ParseFormData').first().json.videoLength }}\n- Duration: {{ $('ParseFormData').first().json.duration }} seconds\n- Total Scenes: {{ $('ParseFormData').first().json.totalScenes }}\n\n**UGC Style:**\n- Style: {{ $('ParseFormData').first().json.ugcStyleDetails }}\n- Additional Notes: {{ $('ParseFormData').first().json.additionalNotes }}\n\n**Available Assets:**\n- Product Images: {{ $input.all()[0].json.images.original }}, {{ $input.all()[0].json.images.generatedGrid }}\n- Character Image: {{ $input.all()[1].json.characterImageUrl }}\n- Character Details: {{ JSON.stringify($input.all()[1].json.characterPhysical.coreIdentity) }}\n\n---\n\n## 🎯 YOUR TASK\n\nAnalyze the product, audience, and user requirements to create an OPTIMAL scene breakdown.\n\nDon't just divide duration equally - be strategic:\n- **Problem scenes** might need more time for emotional setup\n- **Discovery scenes** might be quick and punchy\n- **Success scenes** need time for call-to-action\n- Consider product category (tech needs demos, beauty needs transformations, etc.)\n- Adapt to platform (TikTok = fast, YouTube = slower pacing)\n\n---\n\n## 📤 OUTPUT FORMAT (JSON)\n\n{\n  \"videoStrategy\": {\n    \"totalDuration\": {{ $('ParseFormData').first().json.duration }},\n    \"totalScenes\": {{ $('ParseFormData').first().json.totalScenes }},\n    \"platform\": \"{{ $('ParseFormData').first().json.platform }}\",\n    \"aspectRatio\": \"{{ $('ParseFormData').first().json.aspectRatio }}\",\n    \"pacing\": \"fast|medium|slow\",\n    \"reasoning\": \"Why this scene breakdown works for this product/audience\"\n  },\n  \n  \"sceneBreakdown\": [\n    {\n      \"sceneNumber\": 0,\n      \"type\": \"problem\",\n      \"duration\": 10,\n      \"startTime\": 0,\n      \"endTime\": 10,\n      \"productVisible\": false,\n      \"purpose\": \"Establish pain point\",\n      \"keyMoment\": \"Character frustrated with current solution\",\n      \"emotionalTone\": \"frustrated|confused|overwhelmed\"\n    },\n    {\n      \"sceneNumber\": 1,\n      \"type\": \"discovery\",\n      \"duration\": 7,\n      \"startTime\": 10,\n      \"endTime\": 17,\n      \"productVisible\": true,\n      \"purpose\": \"Introduce solution\",\n      \"keyMoment\": \"Character reveals product with excitement\",\n      \"emotionalTone\": \"curious|excited|hopeful\"\n    },\n    {\n      \"sceneNumber\": 2,\n      \"type\": \"success\",\n      \"duration\": 7,\n      \"startTime\": 17,\n      \"endTime\": 24,\n      \"productVisible\": true,\n      \"purpose\": \"Show transformation + CTA\",\n      \"keyMoment\": \"Character satisfied, direct call-to-action\",\n      \"emotionalTone\": \"satisfied|confident|empowered\"\n    }\n  ],\n  \n  \"resourceRequirements\": {\n    \"totalImagesNeeded\": {{ $('ParseFormData').first().json.totalScenes }},\n    \"totalVideoClipsNeeded\": {{ $('ParseFormData').first().json.totalScenes }},\n    \"estimatedGenerationTime\": \"[estimate in seconds]\"\n  },\n  \n  \"productionNotes\": {\n    \"categorySpecificConsiderations\": \"[e.g., Electronics need feature demos, Beauty needs before/after]\",\n    \"audienceConsiderations\": \"[e.g., Gen Z prefers fast cuts, Millennials prefer storytelling]\",\n    \"platformOptimizations\": \"[e.g., TikTok hook in first 3s, YouTube slower build]\"\n  }\n}\n\n---\n\n## 🚫 CRITICAL RULES\n\n✅ Scene durations MUST add up to total duration ({{ $('ParseFormData').first().json.duration }}s)\n✅ Scene 0 ALWAYS = problem (no product)\n✅ Scene 1+ = solution (product visible)\n✅ Be strategic - don't just divide equally\n✅ Consider product category, audience, platform\n\n**IMPORTANT: Return ONLY valid JSON. No markdown fences. Start with { and end with }**"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "You are an expert Video Production Strategist specializing in UGC content.\n\nYour expertise: Analyzing products, audiences, and platforms to create optimal scene breakdowns for conversion-focused videos.\n\nYou understand:\n- Product categories require different pacing (tech = demo-heavy, beauty = transformation-focused)\n- Audiences have different attention spans (Gen Z = fast, Gen X = detailed)\n- Platforms have different algorithms (TikTok = hook-first, YouTube = narrative)\n- Scene duration should be strategic, not just equally divided\n\nYour output: Intelligent, dynamic scene breakdowns that maximize engagement and conversion."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [3120, 336],
+      "id": "dynamic-video-strategy",
+      "name": "Dynamic Video Strategy (Gemini)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Yoi5nvfad0whGrt9",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Minimal parsing - just extract and validate JSON from Gemini\nconst geminiResponse = $input.first().json;\nlet rawText;\n\nif (geminiResponse.content?.parts?.[0]?.text) {\n  rawText = geminiResponse.content.parts[0].text;\n} else if (geminiResponse.text) {\n  rawText = geminiResponse.text;\n} else {\n  rawText = JSON.stringify(geminiResponse);\n}\n\n// Remove markdown fences if present\nlet cleanText = rawText.replace(/```json\\s*/g, '').replace(/```\\s*/g, '').trim();\n\n// Parse JSON\nlet strategyData;\ntry {\n  strategyData = JSON.parse(cleanText);\n} catch (e) {\n  throw new Error('Failed to parse Gemini strategy: ' + e.message);\n}\n\nif (!strategyData.sceneBreakdown || strategyData.sceneBreakdown.length === 0) {\n  throw new Error('No scene breakdown generated');\n}\n\nconsole.log('✅ Video Strategy:');\nconsole.log('   Pacing:', strategyData.videoStrategy.pacing);\nconsole.log('   Total Scenes:', strategyData.sceneBreakdown.length);\nstrategyData.sceneBreakdown.forEach(s => {\n  console.log(`   Scene ${s.sceneNumber} (${s.type}): ${s.duration}s - ${s.purpose}`);\n});\n\n// Pass through data from Merge node\nconst gridData = $('Merge').all()[0].json;\nconst characterData = $('Merge').all()[1].json;\nconst formData = $('ParseFormData').first().json;\n\nreturn [{\n  json: {\n    videoStrategy: strategyData.videoStrategy,\n    sceneBreakdown: strategyData.sceneBreakdown,\n    resourceRequirements: strategyData.resourceRequirements,\n    productionNotes: strategyData.productionNotes,\n    \n    // Pass through from Merge\n    productImages: gridData.images,\n    productInfo: gridData.product,\n    characterImageUrl: characterData.characterImageUrl,\n    characterPhysical: characterData.characterPhysical,\n    characterConsistency: characterData.consistencyChecklist,\n    ugcCreatorProfile: gridData.ugcCreatorProfile,\n    videoProductionMetadata: gridData.videoProductionMetadata,\n    \n    // Pass through from form\n    productName: formData.productName,\n    productDescription: formData.productDescription,\n    targetAudience: formData.targetAudience,\n    ugcStyleDetails: formData.ugcStyleDetails,\n    additionalNotes: formData.additionalNotes,\n    \n    timestamp: new Date().toISOString(),\n    status: 'video_strategy_ready',\n    progress: 50\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3360, 336],
+      "id": "parse-strategy",
+      "name": "Parse Strategy"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-exp",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a UGC Video Scene Designer & Script Writer.\n\n## 📋 INPUT DATA\n\n**Video Strategy:**\n{{ JSON.stringify($json.videoStrategy, null, 2) }}\n\n**Scene Breakdown:**\n{{ JSON.stringify($json.sceneBreakdown, null, 2) }}\n\n**Product Information:**\n- Name: {{ $json.productName }}\n- Description: {{ $json.productDescription }}\n- Category: {{ $json.productInfo.category }}\n- Images: {{ $json.productImages.original }}, {{ $json.productImages.generatedGrid }}\n\n**Character Baseline:**\n- Image URL: {{ $json.characterImageUrl }}\n- Age: {{ $json.characterPhysical.coreIdentity.exactAge }}\n- Gender: {{ $json.characterPhysical.coreIdentity.gender }}\n- Ethnicity: {{ $json.characterPhysical.coreIdentity.ethnicitySpecific }}\n- Body Type: {{ $json.characterPhysical.bodySpecification.buildType }}\n- Face: {{ $json.characterPhysical.facialStructure.faceShape }} face, {{ $json.characterPhysical.facialStructure.eyes.color }} eyes\n- Hair: {{ $json.characterPhysical.hairSpecification.colorExact }}, {{ $json.characterPhysical.hairSpecification.lengthMeasurement }}, {{ $json.characterPhysical.hairSpecification.currentStyle }}\n- Clothing: {{ $json.characterPhysical.stylePresentation.clothingExact }}\n- Skin Tone: {{ $json.characterPhysical.skinSpecification.baseColor }}, {{ $json.characterPhysical.skinSpecification.undertone }}\n\n**Consistency Checklist (CRITICAL - MUST MATCH):**\n{{ JSON.stringify($json.characterConsistency.primaryIdentifiers) }}\n\n**UGC Creator Profile:**\n{{ JSON.stringify($json.ugcCreatorProfile, null, 2) }}\n\n**Context:**\n- Target Audience: {{ $json.targetAudience }}\n- UGC Style: {{ $json.ugcStyleDetails }}\n- Additional Notes: {{ $json.additionalNotes }}\n\n---\n\n## 🎯 YOUR TASK\n\nFor EACH scene in the scene breakdown, generate:\n\n1. **Nano Banana Pro Image Prompt** (400-600 words)\n   - Start with EXACT character description from baseline (copy physical features verbatim)\n   - Match clothing, hair, face, body EXACTLY\n   - Add scene-specific setting and action\n   - Include product if productVisible = true\n   - Specify lighting, camera angle, composition\n   - End with technical specs (aspect ratio, resolution, UGC aesthetic)\n\n2. **Narration Script**\n   - Natural, conversational UGC style\n   - Match emotional tone from scene breakdown\n   - Appropriate length for scene duration\n   - Include key messaging from Additional Notes\n\n3. **Character Consistency Reminders**\n   - List features that MUST match baseline\n   - Specific warnings for AI generation\n\n---\n\n## 🚫 CRITICAL REQUIREMENTS\n\n✅ Character MUST be IDENTICAL across ALL scenes:\n   - SAME face ({{ $json.characterPhysical.facialStructure.faceShape }}, {{ $json.characterPhysical.facialStructure.eyes.shape }} {{ $json.characterPhysical.facialStructure.eyes.color }} eyes)\n   - SAME hair ({{ $json.characterPhysical.hairSpecification.colorExact }}, {{ $json.characterPhysical.hairSpecification.lengthMeasurement }})\n   - SAME body ({{ $json.characterPhysical.bodySpecification.height }}, {{ $json.characterPhysical.bodySpecification.buildType }})\n   - SAME skin tone ({{ $json.characterPhysical.skinSpecification.baseColor }})\n   - SAME clothing ({{ $json.characterPhysical.stylePresentation.clothingExact }})\n\n✅ Copy character baseline verbatim into EVERY scene prompt\n✅ Scene 0: NO product visible\n✅ Scene 1+: Product prominent and naturally integrated\n✅ Match emotional tone from scene breakdown\n✅ Use scene duration to determine script length\n\n---\n\n## 📤 OUTPUT FORMAT (JSON)\n\n{\n  \"scenes\": [\n    {\n      \"sceneNumber\": 0,\n      \"type\": \"problem\",\n      \"duration\": 10,\n      \"startTime\": 0,\n      \"endTime\": 10,\n      \"productVisible\": false,\n      \"emotionalTone\": \"frustrated\",\n      \n      \"nanoPrompt\": \"A {{ $json.characterPhysical.coreIdentity.exactAge }}-year-old {{ $json.characterPhysical.coreIdentity.gender }}, {{ $json.characterPhysical.coreIdentity.ethnicitySpecific }} ethnicity. {{ $json.characterPhysical.facialStructure.faceShape }} face with {{ $json.characterPhysical.facialStructure.eyes.shape }} {{ $json.characterPhysical.facialStructure.eyes.color }} eyes, {{ $json.characterPhysical.hairSpecification.colorExact }} hair ({{ $json.characterPhysical.hairSpecification.lengthMeasurement }}, {{ $json.characterPhysical.hairSpecification.currentStyle }}). {{ $json.characterPhysical.bodySpecification.height }} tall, {{ $json.characterPhysical.bodySpecification.buildType }} build. Skin tone: {{ $json.characterPhysical.skinSpecification.baseColor }}, {{ $json.characterPhysical.skinSpecification.undertone }} undertone. Wearing {{ $json.characterPhysical.stylePresentation.clothingExact }}.\n\n[SCENE SPECIFIC ACTION AND SETTING - 200-400 words describing the problem moment, environment, pose, facial expression, NO PRODUCT]\n\nCamera: Handheld smartphone POV, {{ $json.videoStrategy.aspectRatio }}, natural lighting, authentic UGC aesthetic. Resolution: 2K, output: PNG.\",\n      \n      \"script\": \"[Natural conversational narration for 10 seconds, expressing frustration about the problem]\",\n      \n      \"characterConsistencyNotes\": [\n        \"MUST have {{ $json.characterPhysical.facialStructure.faceShape }} face\",\n        \"MUST have {{ $json.characterPhysical.hairSpecification.colorExact }} hair at {{ $json.characterPhysical.hairSpecification.lengthMeasurement }}\",\n        \"MUST wear {{ $json.characterPhysical.stylePresentation.clothingExact }}\",\n        \"SAME person as baseline image: {{ $json.characterImageUrl }}\"\n      ],\n      \n      \"technicalSpecs\": {\n        \"aspectRatio\": \"{{ $json.videoStrategy.aspectRatio }}\",\n        \"resolution\": \"2K\",\n        \"cameraAngle\": \"handheld eye-level\",\n        \"lighting\": \"natural\",\n        \"setting\": \"[determined by scene type]\"\n      }\n    }\n    // ... repeat for ALL scenes\n  ],\n  \n  \"characterReference\": {\n    \"baselineImageUrl\": \"{{ $json.characterImageUrl }}\",\n    \"mustMatchFeatures\": {{ JSON.stringify($json.characterConsistency.primaryIdentifiers) }},\n    \"physicalDescription\": \"{{ $json.characterPhysical.coreIdentity.exactAge }}y {{ $json.characterPhysical.coreIdentity.gender }}, {{ $json.characterPhysical.facialStructure.faceShape }} face, {{ $json.characterPhysical.hairSpecification.colorExact }} hair, {{ $json.characterPhysical.bodySpecification.height }}\"\n  },\n  \n  \"productIntegration\": {\n    \"productName\": \"{{ $json.productName }}\",\n    \"productImageUrls\": [\"{{ $json.productImages.original }}\", \"{{ $json.productImages.generatedGrid }}\"],\n    \"firstAppearance\": 1,\n    \"visibilityByScene\": [false, true, true]\n  },\n  \n  \"fullVideoScript\": [\n    {\"sceneNumber\": 0, \"timestamp\": \"0:00-0:10\", \"narration\": \"[Scene 0 script]\"}\n  ]\n}\n\n**IMPORTANT: Return ONLY valid JSON. No markdown fences.**"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "You are an expert UGC Scene Designer and Scriptwriter.\n\nYour specialty: Creating hyper-specific Nano Banana Pro prompts that maintain PERFECT character consistency across all scenes.\n\nCRITICAL RULE: You MUST copy the character's physical description VERBATIM into EVERY scene prompt. The character must look IDENTICAL in every scene.\n\nYour prompts:\n- Start with exact character baseline (age, gender, ethnicity, face, hair, body, skin, clothing)\n- Add scene-specific action and setting\n- Include product only if productVisible = true\n- End with technical specs\n- Be 400-600 words total\n\nYour scripts:\n- Natural, conversational UGC style\n- Match emotional tone from scene breakdown\n- Appropriate length for scene duration\n- NOT overly scripted or salesy"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [3600, 336],
+      "id": "scene-prompts-gen",
+      "name": "Scene Prompts Generator (Gemini)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Yoi5nvfad0whGrt9",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Minimal parsing - extract and validate scene prompts\nconst geminiResponse = $input.first().json;\nlet rawText;\n\nif (geminiResponse.content?.parts?.[0]?.text) {\n  rawText = geminiResponse.content.parts[0].text;\n} else if (geminiResponse.text) {\n  rawText = geminiResponse.text;\n} else {\n  rawText = JSON.stringify(geminiResponse);\n}\n\nlet cleanText = rawText.replace(/```json\\s*/g, '').replace(/```\\s*/g, '').trim();\n\nlet sceneData;\ntry {\n  sceneData = JSON.parse(cleanText);\n} catch (e) {\n  throw new Error('Failed to parse scene prompts: ' + e.message);\n}\n\nif (!sceneData.scenes || sceneData.scenes.length === 0) {\n  throw new Error('No scenes generated');\n}\n\nconsole.log('✅ Scene Prompts Ready:', sceneData.scenes.length, 'scenes');\n\nconst previousData = $('Parse Strategy').first().json;\n\nreturn [{\n  json: {\n    scenes: sceneData.scenes,\n    characterReference: sceneData.characterReference,\n    productIntegration: sceneData.productIntegration,\n    fullVideoScript: sceneData.fullVideoScript,\n    videoStrategy: previousData.videoStrategy,\n    productImages: previousData.productImages,\n    characterImageUrl: previousData.characterImageUrl,\n    timestamp: new Date().toISOString(),\n    status: 'scene_prompts_ready',\n    progress: 60\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3840, 336],
+      "id": "parse-scene-prompts",
+      "name": "Parse Scene Prompts"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split scenes into individual items for loop processing\nconst sceneData = $input.first().json;\nconst scenes = sceneData.scenes;\n\nconst output = scenes.map(scene => ({\n  json: {\n    currentScene: scene,\n    characterReference: sceneData.characterReference,\n    productIntegration: sceneData.productIntegration,\n    videoStrategy: sceneData.videoStrategy,\n    productImages: sceneData.productImages,\n    nanoBananaConfig: {\n      model: 'nano-banana-pro',\n      aspectRatio: scene.technicalSpecs.aspectRatio,\n      resolution: '2K',\n      outputFormat: 'png'\n    },\n    totalScenes: scenes.length,\n    timestamp: new Date().toISOString()\n  }\n}));\n\nconsole.log('✅ Prepared', output.length, 'scenes for generation');\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4080, 336],
+      "id": "loop-prep",
+      "name": "Loop Prep"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [4320, 336],
+      "id": "split-scenes",
+      "name": "Split Scenes"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.nanoBananaConfig.model }}\",\n  \"input\": {\n    \"prompt\": \"{{ $json.currentScene.nanoPrompt }}\",\n    \"image_input\": [\"{{ $json.characterReference.baselineImageUrl }}\"],\n    \"aspect_ratio\": \"{{ $json.nanoBananaConfig.aspectRatio }}\",\n    \"resolution\": \"{{ $json.nanoBananaConfig.resolution }}\",\n    \"output_format\": \"{{ $json.nanoBananaConfig.outputFormat }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4560, 336],
+      "id": "gen-scene-image",
+      "name": "Generate Scene Image",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "gM3NC7K1oPdMCFw5",
+          "name": "Kie"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [4800, 336],
+      "id": "wait-scene",
+      "name": "Wait Scene"
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/jobs/recordInfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "taskId", "value": "={{ $('Generate Scene Image').item.json.data.taskId }}"}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [5040, 336],
+      "id": "get-scene-result",
+      "name": "Get Scene Result",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "gM3NC7K1oPdMCFw5",
+          "name": "Kie"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-success",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [5280, 336],
+      "id": "check-scene-status",
+      "name": "Check Scene Status"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract scene image URL from API response\nconst kieResponse = $json;\nconst sceneContext = $('Split Scenes').item.json;\n\nif (kieResponse.data.state !== 'success') {\n  throw new Error('Scene generation failed');\n}\n\nconst resultJson = JSON.parse(kieResponse.data.resultJson);\nconst sceneImageUrl = resultJson.resultUrls[0];\n\nif (!sceneImageUrl) {\n  throw new Error('No image URL in response');\n}\n\nconst scene = sceneContext.currentScene;\n\nconsole.log('✅ Scene', scene.sceneNumber, 'ready:', sceneImageUrl);\n\nreturn [{\n  json: {\n    sceneNumber: scene.sceneNumber,\n    sceneType: scene.type,\n    duration: scene.duration,\n    startTime: scene.startTime,\n    endTime: scene.endTime,\n    productVisible: scene.productVisible,\n    emotionalTone: scene.emotionalTone,\n    imageUrl: sceneImageUrl,\n    script: scene.script,\n    technicalSpecs: scene.technicalSpecs,\n    taskId: kieResponse.data.taskId,\n    generationTime: kieResponse.data.costTime,\n    timestamp: new Date().toISOString(),\n    status: 'scene_image_ready'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5520, 400],
+      "id": "extract-scene-image",
+      "name": "Extract Scene Image"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [5760, 400],
+      "id": "aggregate-scenes",
+      "name": "Aggregate All Scenes"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-exp",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a Video Production Director reviewing final scene compilation.\n\n## 📋 ALL GENERATED SCENES\n\n{{ JSON.stringify($input.all().map(item => item.json), null, 2) }}\n\n---\n\n## 🎯 YOUR TASK\n\nReview all generated scenes and create a FINAL PRODUCTION PACKAGE:\n\n1. **Quality Check**:\n   - Verify all scene images generated successfully\n   - Confirm scripts flow naturally scene-to-scene\n   - Check character consistency across scenes\n   - Ensure product integration is natural\n\n2. **Script Polish**:\n   - Review full narration for flow\n   - Add transitions between scenes if needed\n   - Ensure tone progression (problem → discovery → success)\n   - Verify timing matches scene durations\n\n3. **Production Notes**:\n   - Flag any consistency issues\n   - Suggest improvements for video generation\n   - Note technical considerations\n\n---\n\n## 📤 OUTPUT FORMAT (JSON)\n\n{\n  \"finalScenes\": [\n    {\n      \"sceneNumber\": 0,\n      \"imageUrl\": \"https://...\",\n      \"script\": \"[polished script with natural flow]\",\n      \"duration\": 10,\n      \"emotionalTone\": \"frustrated\",\n      \"transitionNote\": \"[how this connects to next scene]\"\n    }\n  ],\n  \n  \"fullVideoScript\": [\n    {\n      \"sceneNumber\": 0,\n      \"timestamp\": \"0:00-0:10\",\n      \"narration\": \"[polished narration]\",\n      \"visualDescription\": \"[what's happening on screen]\"\n    }\n  ],\n  \n  \"qualityCheck\": {\n    \"allImagesGenerated\": true,\n    \"characterConsistency\": \"verified|concerns\",\n    \"scriptFlow\": \"natural|needs_work\",\n    \"productIntegration\": \"natural|forced\",\n    \"concerns\": [\"[any issues found]\"]\n  },\n  \n  \"videoGenerationQueue\": [\n    {\n      \"sceneNumber\": 0,\n      \"imageUrl\": \"https://...\",\n      \"duration\": 10,\n      \"script\": \"[final script]\",\n      \"technicalSpecs\": {}\n    }\n  ],\n  \n  \"productionSummary\": {\n    \"totalScenes\": 3,\n    \"totalDuration\": 24,\n    \"readyForVideoGeneration\": true,\n    \"estimatedFinalQuality\": \"excellent|good|needs_revision\",\n    \"directorNotes\": \"[overall assessment and suggestions]\"\n  }\n}\n\n**IMPORTANT: Return ONLY valid JSON. No markdown fences.**"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "You are an experienced Video Production Director specializing in UGC content.\n\nYour role: Final quality check and script polish before video generation.\n\nYou ensure:\n- All scenes flow naturally together\n- Scripts have good pacing and transitions\n- Character remains consistent across scenes\n- Product integration feels authentic, not forced\n- Technical quality is production-ready\n\nYou provide constructive feedback and polish the final package for video generation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [6000, 400],
+      "id": "final-compilation",
+      "name": "Final Compilation & Polish (Gemini)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Yoi5nvfad0whGrt9",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse final compilation from Gemini\nconst geminiResponse = $input.first().json;\nlet rawText;\n\nif (geminiResponse.content?.parts?.[0]?.text) {\n  rawText = geminiResponse.content.parts[0].text;\n} else if (geminiResponse.text) {\n  rawText = geminiResponse.text;\n} else {\n  rawText = JSON.stringify(geminiResponse);\n}\n\nlet cleanText = rawText.replace(/```json\\s*/g, '').replace(/```\\s*/g, '').trim();\n\nlet compilationData;\ntry {\n  compilationData = JSON.parse(cleanText);\n} catch (e) {\n  throw new Error('Failed to parse final compilation: ' + e.message);\n}\n\nconsole.log('✅ Final Compilation Ready');\nconsole.log('   Quality:', compilationData.productionSummary.estimatedFinalQuality);\nconsole.log('   Ready for video gen:', compilationData.productionSummary.readyForVideoGeneration);\nif (compilationData.qualityCheck.concerns?.length > 0) {\n  console.log('⚠️  Concerns:', compilationData.qualityCheck.concerns);\n}\n\nreturn [{\n  json: {\n    finalScenes: compilationData.finalScenes,\n    fullVideoScript: compilationData.fullVideoScript,\n    qualityCheck: compilationData.qualityCheck,\n    videoGenerationQueue: compilationData.videoGenerationQueue,\n    productionSummary: compilationData.productionSummary,\n    timestamp: new Date().toISOString(),\n    status: 'all_scenes_ready_and_polished',\n    progress: 80\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6240, 400],
+      "id": "parse-compilation",
+      "name": "Parse Final Compilation"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== VIDEO GENERATION PLACEHOLDER =====\n// TODO: Implement video generation using seedance-1-5-pro or veo3.1\n\nconst finalData = $input.first().json;\nconst videoQueue = finalData.videoGenerationQueue;\n\nconsole.log('⏸️ VIDEO GENERATION PLACEHOLDER');\nconsole.log('   Scenes ready:', videoQueue.length);\nconsole.log('   Quality check:', finalData.qualityCheck.characterConsistency);\nconsole.log('   Director notes:', finalData.productionSummary.directorNotes);\nconsole.log('');\nconsole.log('📋 TODO: Implement Video Generation');\nconsole.log('   1. Choose model: seedance-1-5-pro (12s max) or veo3.1 (8s max)');\nconsole.log('   2. Loop through videoGenerationQueue');\nconsole.log('   3. For each scene: Call video API → Wait → Extract URL');\nconsole.log('   4. Collect all video clips');\n\nreturn [{\n  json: {\n    ...finalData,\n    videoClips: null,\n    status: 'video_generation_pending',\n    progress: 85,\n    placeholderNote: 'Video generation not implemented. Choose model and implement API calls.'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6480, 400],
+      "id": "video-gen-placeholder",
+      "name": "VIDEO GENERATION PLACEHOLDER"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== FFMPEG ASSEMBLY PLACEHOLDER =====\nconst data = $input.first().json;\n\nconsole.log('⏸️ FFMPEG ASSEMBLY PLACEHOLDER');\nconsole.log('   Director Quality Assessment:', data.productionSummary.estimatedFinalQuality);\nconsole.log('');\nconsole.log('📋 TODO: Implement FFmpeg');\nconsole.log('   1. Download all video clips');\nconsole.log('   2. Create concat file');\nconsole.log('   3. Run: ffmpeg -f concat -safe 0 -i filelist.txt -c copy final.mp4');\n\nreturn [{\n  json: {\n    ...data,\n    finalVideoUrl: null,\n    status: 'assembly_pending',\n    progress: 90\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6720, 400],
+      "id": "ffmpeg-placeholder",
+      "name": "FFMPEG ASSEMBLY PLACEHOLDER"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== SUPABASE UPLOAD PLACEHOLDER =====\nconst data = $input.first().json;\n\nconsole.log('⏸️ SUPABASE UPLOAD PLACEHOLDER');\nconsole.log('   Final Quality:', data.productionSummary.estimatedFinalQuality);\nconsole.log('');\nconsole.log('📋 TODO: Upload to Supabase Storage + Update video_jobs table');\n\nreturn [{\n  json: {\n    success: false,\n    status: 'upload_pending',\n    progress: 95,\n    qualityAssessment: data.productionSummary,\n    implementationNeeded: [\n      'Upload to Supabase Storage',\n      'Update video_jobs table',\n      'Error handling with refunds'\n    ]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6960, 400],
+      "id": "supabase-placeholder",
+      "name": "SUPABASE UPLOAD PLACEHOLDER"
+    }
+  ],
+  "connections": {
+    "Dynamic Video Strategy (Gemini)": {
+      "main": [[{"node": "Parse Strategy", "type": "main", "index": 0}]]
+    },
+    "Parse Strategy": {
+      "main": [[{"node": "Scene Prompts Generator (Gemini)", "type": "main", "index": 0}]]
+    },
+    "Scene Prompts Generator (Gemini)": {
+      "main": [[{"node": "Parse Scene Prompts", "type": "main", "index": 0}]]
+    },
+    "Parse Scene Prompts": {
+      "main": [[{"node": "Loop Prep", "type": "main", "index": 0}]]
+    },
+    "Loop Prep": {
+      "main": [[{"node": "Split Scenes", "type": "main", "index": 0}]]
+    },
+    "Split Scenes": {
+      "main": [[{"node": "Generate Scene Image", "type": "main", "index": 0}]]
+    },
+    "Generate Scene Image": {
+      "main": [[{"node": "Wait Scene", "type": "main", "index": 0}]]
+    },
+    "Wait Scene": {
+      "main": [[{"node": "Get Scene Result", "type": "main", "index": 0}]]
+    },
+    "Get Scene Result": {
+      "main": [[{"node": "Check Scene Status", "type": "main", "index": 0}]]
+    },
+    "Check Scene Status": {
+      "main": [
+        [{"node": "Wait Scene", "type": "main", "index": 0}],
+        [{"node": "Extract Scene Image", "type": "main", "index": 0}]
+      ]
+    },
+    "Extract Scene Image": {
+      "main": [[{"node": "Aggregate All Scenes", "type": "main", "index": 0}]]
+    },
+    "Aggregate All Scenes": {
+      "main": [[{"node": "Final Compilation & Polish (Gemini)", "type": "main", "index": 0}]]
+    },
+    "Final Compilation & Polish (Gemini)": {
+      "main": [[{"node": "Parse Final Compilation", "type": "main", "index": 0}]]
+    },
+    "Parse Final Compilation": {
+      "main": [[{"node": "VIDEO GENERATION PLACEHOLDER", "type": "main", "index": 0}]]
+    },
+    "VIDEO GENERATION PLACEHOLDER": {
+      "main": [[{"node": "FFMPEG ASSEMBLY PLACEHOLDER", "type": "main", "index": 0}]]
+    },
+    "FFMPEG ASSEMBLY PLACEHOLDER": {
+      "main": [[{"node": "SUPABASE UPLOAD PLACEHOLDER", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
