@@ -1,0 +1,279 @@
+{
+  "name": "After Merge - Scene Generation Nodes",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// ===== VIDEO REQUIREMENTS CALCULATOR =====\n// Calculates how many scenes and images needed based on user's video length request\n\nconst gridData = $input.all()[0].json;\nconst characterData = $input.all()[1].json;\nconst formData = $('ParseFormData').first().json;\n\nconst totalDuration = formData.duration;\nconst totalScenes = formData.totalScenes;\nconst sceneDuration = Math.floor(totalDuration / totalScenes);\n\n// Scene types based on total scenes\nconst sceneTypeMap = {\n  2: ['problem', 'solution'],\n  3: ['problem', 'discovery', 'success'],\n  4: ['problem', 'discovery', 'trial', 'success'],\n  5: ['problem', 'discovery', 'trial_1', 'trial_2', 'success'],\n  6: ['problem', 'discovery', 'trial_1', 'trial_2', 'trial_3', 'success'],\n  7: ['problem', 'discovery', 'trial_1', 'trial_2', 'trial_3', 'trial_4', 'success'],\n  8: ['problem', 'discovery', 'trial_1', 'trial_2', 'trial_3', 'trial_4', 'trial_5', 'success']\n};\n\nconst sceneTypes = sceneTypeMap[totalScenes] || ['problem', 'discovery', 'success'];\n\n// Build scene configuration\nconst sceneConfig = sceneTypes.map((type, index) => {\n  let description = '';\n  let productVisible = false;\n  \n  if (type === 'problem') {\n    description = 'Problem scene - character experiencing issue before product';\n    productVisible = false;\n  } else if (type === 'discovery') {\n    description = 'Discovery scene - character finds and reveals product';\n    productVisible = true;\n  } else if (type.includes('trial')) {\n    description = 'Trial scene - character testing/using product';\n    productVisible = true;\n  } else if (type === 'solution' || type === 'success') {\n    description = 'Success scene - character satisfied with product, call-to-action';\n    productVisible = true;\n  }\n  \n  return {\n    sceneNumber: index,\n    type: type,\n    duration: sceneDuration,\n    description: description,\n    productVisible: productVisible,\n    startTime: index * sceneDuration,\n    endTime: (index + 1) * sceneDuration\n  };\n});\n\nconst output = {\n  videoConfig: {\n    totalDuration,\n    totalScenes,\n    sceneDuration,\n    aspectRatio: formData.aspectRatio,\n    platform: formData.platform\n  },\n  sceneConfig,\n  resourceRequirements: {\n    totalImagesNeeded: totalScenes,\n    totalVideoClipsNeeded: totalScenes,\n    estimatedGenerationTime: totalScenes * 60\n  },\n  productImages: gridData.images,\n  productInfo: gridData.product,\n  characterImageUrl: characterData.characterImageUrl,\n  characterPhysical: characterData.characterPhysical,\n  characterConsistency: characterData.consistencyChecklist,\n  ugcCreatorProfile: gridData.ugcCreatorProfile,\n  videoProductionMetadata: gridData.videoProductionMetadata,\n  productName: formData.productName,\n  productDescription: formData.productDescription,\n  targetAudience: formData.targetAudience,\n  ugcStyleDetails: formData.ugcStyleDetails,\n  additionalNotes: formData.additionalNotes,\n  timestamp: new Date().toISOString(),\n  status: 'video_requirements_calculated',\n  progress: 50\n};\n\nconsole.log('✅ Video Requirements Calculated:');\nconsole.log('   Total Duration:', totalDuration, 'seconds');\nconsole.log('   Total Scenes:', totalScenes);\nconsole.log('   Duration per Scene:', sceneDuration, 'seconds');\nconsole.log('   Scene Types:', sceneTypes.join(', '));\nconsole.log('   Images Needed:', totalScenes);\n\nreturn [{ json: output }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3120, 336],
+      "id": "video-req-calc",
+      "name": "Video Requirements Calculator"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-exp",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a UGC Video Scene Designer & Script Writer.\n\n## 🎯 YOUR TASK\n\nGenerate COMPLETE scene-by-scene prompts + scripts for UGC video production.\n\n---\n\n## 📋 INPUT DATA\n\n**Video Configuration:**\n- Total Duration: {{ $json.videoConfig.totalDuration }}s\n- Total Scenes: {{ $json.videoConfig.totalScenes }}\n- Duration per Scene: {{ $json.videoConfig.sceneDuration }}s\n- Aspect Ratio: {{ $json.videoConfig.aspectRatio }}\n- Platform: {{ $json.videoConfig.platform }}\n\n**Scene Breakdown:**\n{{ JSON.stringify($json.sceneConfig, null, 2) }}\n\n**Product Information:**\n- Product Name: {{ $json.productName }}\n- Product Description: {{ $json.productDescription }}\n- Product Images Available:\n  - Original: {{ $json.productImages.original }}\n  - 2x2 Grid: {{ $json.productImages.generatedGrid }}\n\n**Character Baseline:**\n- Character Image URL: {{ $json.characterImageUrl }}\n- Age: {{ $json.characterPhysical.coreIdentity.exactAge }}\n- Gender: {{ $json.characterPhysical.coreIdentity.gender }}\n- Ethnicity: {{ $json.characterPhysical.coreIdentity.ethnicitySpecific }}\n- Style: {{ $json.characterPhysical.stylePresentation.clothingExact }}\n\n**Key Consistency Features (CRITICAL - Character MUST match across ALL scenes):**\n{{ JSON.stringify($json.characterConsistency.primaryIdentifiers, null, 2) }}\n\n**UGC Creator Profile:**\n{{ JSON.stringify($json.ugcCreatorProfile, null, 2) }}\n\n**Additional Context:**\n- Target Audience: {{ $json.targetAudience }}\n- UGC Style: {{ $json.ugcStyleDetails }}\n- Special Instructions: {{ $json.additionalNotes }}\n\n---\n\n## 🎬 YOUR OUTPUT\n\nFor EACH scene in sceneConfig, generate:\n\n1. **Nano Banana Pro Image Prompt** (400-600 words)\n   - Hyper-specific character description (MUST match baseline)\n   - Scene setting and environment\n   - Character action and pose\n   - Product visibility (if applicable)\n   - Lighting, camera angle, composition\n   - UGC smartphone aesthetic\n\n2. **Narration Script** (what character says during this scene)\n   - Natural, conversational tone\n   - Aligns with UGC style\n   - Conveys key messaging\n   - Time-appropriate for scene duration\n\n3. **Character Consistency Notes**\n   - Key features that MUST match baseline\n   - Specific reminders for AI generation\n\n---\n\n## 🚫 CRITICAL REQUIREMENTS\n\n✅ Character MUST look IDENTICAL across ALL scenes:\n   - Same face ({{ $json.characterPhysical.facialStructure.faceShape }} face, etc)\n   - Same hair ({{ $json.characterPhysical.hairSpecification.colorExact }}, {{ $json.characterPhysical.hairSpecification.lengthMeasurement }})\n   - Same body ({{ $json.characterPhysical.bodySpecification.height }}, {{ $json.characterPhysical.bodySpecification.buildType }})\n   - Same clothing throughout video (continuity)\n\n✅ Scene 0 (Problem): NO product visible, character experiencing problem\n✅ Scene 1+ (Discovery/Success): Product prominent, character interacting naturally\n✅ All prompts ready for Nano Banana Pro image generation\n✅ Scripts authentic UGC style (conversational, not scripted)\n\n---\n\n## 📤 OUTPUT FORMAT (JSON)\n\n{\n  \"scenes\": [\n    {\n      \"sceneNumber\": 0,\n      \"type\": \"problem\",\n      \"duration\": 8,\n      \"startTime\": 0,\n      \"endTime\": 8,\n      \"productVisible\": false,\n      \"nanoPrompt\": \"[COMPLETE 400-600 word prompt for Nano Banana Pro.]\",\n      \"script\": \"[Natural conversational narration for this scene.]\",\n      \"characterConsistencyNotes\": [\"[Reminder 1]\", \"[Reminder 2]\"],\n      \"technicalSpecs\": {\n        \"aspectRatio\": \"{{ $json.videoConfig.aspectRatio }}\",\n        \"resolution\": \"2K\",\n        \"cameraAngle\": \"[e.g., eye-level]\",\n        \"lighting\": \"[e.g., natural]\",\n        \"setting\": \"[e.g., kitchen]\"\n      }\n    }\n  ],\n  \"characterReference\": {\n    \"baselineImageUrl\": \"{{ $json.characterImageUrl }}\",\n    \"mustMatchFeatures\": {{ JSON.stringify($json.characterConsistency.primaryIdentifiers) }}\n  },\n  \"productIntegration\": {\n    \"productName\": \"{{ $json.productName }}\",\n    \"productImageUrls\": [\"{{ $json.productImages.original }}\", \"{{ $json.productImages.generatedGrid }}\"]\n  },\n  \"fullVideoScript\": [\n    {\"sceneNumber\": 0, \"timestamp\": \"0:00-0:08\", \"narration\": \"[Scene 0 script]\"}\n  ],\n  \"generationMetadata\": {\n    \"totalScenes\": {{ $json.videoConfig.totalScenes }},\n    \"totalDuration\": {{ $json.videoConfig.totalDuration }}\n  }\n}\n\n**IMPORTANT: Return ONLY valid JSON. No markdown fences.**"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "You are an expert UGC Video Scene Designer and Scriptwriter specializing in authentic, conversion-optimized social media content.\n\nYour specialty: Multi-scene video scripts with hyper-specific Nano Banana Pro image prompts that maintain perfect character consistency across all scenes.\n\nKey Principles:\n1. CHARACTER CONSISTENCY IS PARAMOUNT - Same person across ALL scenes\n2. Scene 0 = Problem (no product), Scene 1+ = Solution (product visible)\n3. Scripts must be natural, conversational, authentic UGC style\n4. Prompts must be 400-600 words with every detail specified\n5. Each scene must feel like smartphone-filmed content, not professional ads"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [3360, 336],
+      "id": "scene-prompts-gen",
+      "name": "Scene Prompts Generator",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Yoi5nvfad0whGrt9",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== PARSE SCENE PROMPTS FROM GEMINI =====\n\nconst geminiResponse = $input.first().json;\nlet rawText;\n\nif (geminiResponse.content?.parts?.[0]?.text) {\n  rawText = geminiResponse.content.parts[0].text;\n} else if (geminiResponse.text) {\n  rawText = geminiResponse.text;\n} else if (typeof geminiResponse === 'string') {\n  rawText = geminiResponse;\n} else {\n  throw new Error('❌ Cannot find scene prompts in Gemini response');\n}\n\n// Remove markdown fences\nlet cleanedText = rawText;\nif (rawText.includes('```json')) {\n  const jsonMatch = rawText.match(/```json\\s*([\\s\\S]*?)\\s*```/);\n  if (jsonMatch && jsonMatch[1]) {\n    cleanedText = jsonMatch[1];\n  }\n} else if (rawText.includes('```')) {\n  const jsonMatch = rawText.match(/```\\s*([\\s\\S]*?)\\s*```/);\n  if (jsonMatch && jsonMatch[1]) {\n    cleanedText = jsonMatch[1];\n  }\n}\n\n// Parse JSON\nlet sceneData;\ntry {\n  sceneData = JSON.parse(cleanedText);\n} catch (e) {\n  console.error('❌ JSON Parse Error:', e.message);\n  console.error('Content:', cleanedText.substring(0, 500));\n  throw new Error('Failed to parse scene prompts JSON: ' + e.message);\n}\n\n// Validate\nif (!sceneData.scenes || !Array.isArray(sceneData.scenes)) {\n  throw new Error('❌ Invalid scene data: missing scenes array');\n}\n\nif (sceneData.scenes.length === 0) {\n  throw new Error('❌ No scenes generated');\n}\n\nconsole.log('✅ Scene Prompts Parsed Successfully:');\nconsole.log('   Total Scenes:', sceneData.scenes.length);\nsceneData.scenes.forEach(scene => {\n  console.log(`   Scene ${scene.sceneNumber} (${scene.type}): ${scene.duration}s - ${scene.productVisible ? 'WITH' : 'NO'} product`);\n});\n\nconst previousData = $('Video Requirements Calculator').first().json;\n\nreturn [{\n  json: {\n    scenes: sceneData.scenes,\n    characterReference: sceneData.characterReference,\n    productIntegration: sceneData.productIntegration,\n    fullVideoScript: sceneData.fullVideoScript,\n    generationMetadata: sceneData.generationMetadata,\n    videoConfig: previousData.videoConfig,\n    productImages: previousData.productImages,\n    characterImageUrl: previousData.characterImageUrl,\n    timestamp: new Date().toISOString(),\n    status: 'scene_prompts_ready',\n    progress: 60,\n    nextStep: 'scene_image_generation'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3600, 336],
+      "id": "parse-scene-prompts",
+      "name": "Parse Scene Prompts"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== LOOP PREPARATION: Split scenes into individual items =====\n\nconst sceneData = $input.first().json;\nconst scenes = sceneData.scenes;\n\n// Convert array of scenes into individual items for Loop node\nconst output = scenes.map(scene => {\n  return {\n    json: {\n      currentScene: scene,\n      characterReference: sceneData.characterReference,\n      productIntegration: sceneData.productIntegration,\n      videoConfig: sceneData.videoConfig,\n      productImages: sceneData.productImages,\n      nanoBananaConfig: {\n        model: 'nano-banana-pro',\n        aspectRatio: scene.technicalSpecs.aspectRatio,\n        resolution: '2K',\n        outputFormat: 'png'\n      },\n      totalScenes: scenes.length,\n      timestamp: new Date().toISOString()\n    }\n  };\n});\n\nconsole.log('✅ Prepared', output.length, 'scenes for loop');\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3840, 336],
+      "id": "loop-prep",
+      "name": "Loop Prep"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [4080, 336],
+      "id": "split-scenes",
+      "name": "Split Scenes"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.nanoBananaConfig.model }}\",\n  \"input\": {\n    \"prompt\": \"{{ $json.currentScene.nanoPrompt }}\",\n    \"image_input\": [\"{{ $json.characterReference.baselineImageUrl }}\"],\n    \"aspect_ratio\": \"{{ $json.nanoBananaConfig.aspectRatio }}\",\n    \"resolution\": \"{{ $json.nanoBananaConfig.resolution }}\",\n    \"output_format\": \"{{ $json.nanoBananaConfig.outputFormat }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4320, 336],
+      "id": "gen-scene-image",
+      "name": "Generate Scene Image",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "gM3NC7K1oPdMCFw5",
+          "name": "Kie"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [4560, 336],
+      "id": "wait-scene",
+      "name": "Wait Scene"
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/jobs/recordInfo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {"name": "taskId", "value": "={{ $('Generate Scene Image').item.json.data.taskId }}"}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [4800, 336],
+      "id": "get-scene-result",
+      "name": "Get Scene Result",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "gM3NC7K1oPdMCFw5",
+          "name": "Kie"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-success",
+              "leftValue": "={{ $json.data.state }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [5040, 336],
+      "id": "check-scene-status",
+      "name": "Check Scene Status"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== EXTRACT SCENE IMAGE URL =====\n\nconst kieResponse = $json;\nconst sceneContext = $('Split Scenes').item.json;\n\nif (kieResponse.data.state !== 'success') {\n  throw new Error('Scene image generation failed');\n}\n\nconst resultJson = JSON.parse(kieResponse.data.resultJson);\nconst sceneImageUrl = resultJson.resultUrls[0];\n\nif (!sceneImageUrl) {\n  throw new Error('No image URL in response');\n}\n\nconst scene = sceneContext.currentScene;\n\nconsole.log('✅ Scene', scene.sceneNumber, 'image generated:', sceneImageUrl);\n\nreturn [{\n  json: {\n    sceneNumber: scene.sceneNumber,\n    sceneType: scene.type,\n    duration: scene.duration,\n    startTime: scene.startTime,\n    endTime: scene.endTime,\n    productVisible: scene.productVisible,\n    imageUrl: sceneImageUrl,\n    script: scene.script,\n    technicalSpecs: scene.technicalSpecs,\n    taskId: kieResponse.data.taskId,\n    generationTime: kieResponse.data.costTime,\n    timestamp: new Date().toISOString(),\n    status: 'scene_image_ready'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5280, 400],
+      "id": "extract-scene-image",
+      "name": "Extract Scene Image"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [5520, 400],
+      "id": "aggregate-scenes",
+      "name": "Aggregate All Scenes"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== COMPILE ALL SCENE IMAGES & SCRIPTS =====\n\nconst allScenes = $input.all().map(item => item.json);\n\n// Sort by scene number\nallScenes.sort((a, b) => a.sceneNumber - b.sceneNumber);\n\nconsole.log('✅ All Scene Images Generated:');\nallScenes.forEach(scene => {\n  console.log(`   Scene ${scene.sceneNumber} (${scene.sceneType}): ${scene.imageUrl}`);\n});\n\n// Compile full script\nconst fullScript = allScenes.map(scene => {\n  return {\n    sceneNumber: scene.sceneNumber,\n    timestamp: `${scene.startTime}s - ${scene.endTime}s`,\n    type: scene.sceneType,\n    narration: scene.script,\n    duration: scene.duration\n  };\n});\n\n// Prepare for video generation\nconst videoGenerationQueue = allScenes.map(scene => {\n  return {\n    sceneNumber: scene.sceneNumber,\n    imageUrl: scene.imageUrl,\n    duration: scene.duration,\n    script: scene.script,\n    technicalSpecs: scene.technicalSpecs\n  };\n});\n\nreturn [{\n  json: {\n    sceneImages: allScenes,\n    fullScript,\n    videoGenerationQueue,\n    summary: {\n      totalScenes: allScenes.length,\n      totalDuration: allScenes.reduce((sum, s) => sum + s.duration, 0),\n      allImagesGenerated: allScenes.every(s => s.imageUrl),\n      readyForVideoGeneration: true\n    },\n    timestamp: new Date().toISOString(),\n    status: 'all_scene_images_ready',\n    progress: 80,\n    nextStep: 'video_generation_per_scene'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5760, 400],
+      "id": "compile-scenes",
+      "name": "Script Compilation"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== VIDEO GENERATION PLACEHOLDER =====\n// TODO: Implement video generation using seedance-1-5-pro or veo3.1\n\nconst sceneData = $input.first().json;\nconst videoQueue = sceneData.videoGenerationQueue;\n\nconsole.log('⏸️ VIDEO GENERATION PLACEHOLDER');\nconsole.log('   Total scenes to convert to video:', videoQueue.length);\nconsole.log('');\nconsole.log('📋 TODO: Implement Video Generation');\nconsole.log('   1. Choose video model: seedance-1-5-pro (12s max) or veo3.1 (8s max)');\nconsole.log('   2. Loop through videoGenerationQueue');\nconsole.log('   3. For each scene:');\nconsole.log('      - Call video generation API');\nconsole.log('      - Input: scene.imageUrl + scene.duration');\nconsole.log('      - Wait for completion');\nconsole.log('      - Extract video URL');\nconsole.log('   4. Collect all video clip URLs in array');\nconsole.log('');\nconsole.log('🎬 Expected Output:');\nconsole.log('   {');\nconsole.log('     \"videoClips\": [');\nconsole.log('       { \"sceneNumber\": 0, \"videoUrl\": \"https://...\", \"duration\": 8 },');\nconsole.log('       { \"sceneNumber\": 1, \"videoUrl\": \"https://...\", \"duration\": 8 },');\nconsole.log('       { \"sceneNumber\": 2, \"videoUrl\": \"https://...\", \"duration\": 8 }');\nconsole.log('     ]');\nconsole.log('   }');\n\nreturn [{\n  json: {\n    ...sceneData,\n    videoClips: null,\n    status: 'video_generation_pending',\n    progress: 85,\n    placeholderNote: 'Video generation not implemented yet. Need to select video model (seedance-1-5-pro or veo3.1) and implement API calls.'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6000, 400],
+      "id": "video-gen-placeholder",
+      "name": "VIDEO GENERATION PLACEHOLDER"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== FFMPEG VIDEO ASSEMBLY PLACEHOLDER =====\n// TODO: Implement FFmpeg concatenation of video clips\n\nconst data = $input.first().json;\n\nconsole.log('⏸️ FFMPEG VIDEO ASSEMBLY PLACEHOLDER');\nconsole.log('');\nconsole.log('📋 TODO: Implement FFmpeg Assembly');\nconsole.log('   1. Download all video clips from videoClips array');\nconsole.log('   2. Create FFmpeg concat file list');\nconsole.log('   3. Run FFmpeg command:');\nconsole.log('      ffmpeg -f concat -safe 0 -i filelist.txt -c copy final_video.mp4');\nconsole.log('   4. Upload final_video.mp4 to temporary storage');\nconsole.log('   5. Return final video URL');\nconsole.log('');\nconsole.log('🎥 Expected Output:');\nconsole.log('   {');\nconsole.log('     \"finalVideoUrl\": \"https://...\",');\nconsole.log('     \"duration\": 24,');\nconsole.log('     \"resolution\": \"1080x1920\",');\nconsole.log('     \"fileSize\": \"15MB\"');\nconsole.log('   }');\n\nreturn [{\n  json: {\n    ...data,\n    finalVideoUrl: null,\n    status: 'video_assembly_pending',\n    progress: 90,\n    placeholderNote: 'FFmpeg video assembly not implemented yet. Need to concatenate video clips into final MP4.'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6240, 400],
+      "id": "ffmpeg-placeholder",
+      "name": "FFMPEG ASSEMBLY PLACEHOLDER"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== SUPABASE UPLOAD & JOB COMPLETION PLACEHOLDER =====\n// TODO: Implement final video upload and database update\n\nconst data = $input.first().json;\n\nconsole.log('⏸️ SUPABASE UPLOAD & COMPLETION PLACEHOLDER');\nconsole.log('');\nconsole.log('📋 TODO: Implement Final Steps');\nconsole.log('   1. Upload final video to Supabase Storage:');\nconsole.log('      - Bucket: video-outputs');\nconsole.log('      - Path: {userId}/{jobId}/final_video.mp4');\nconsole.log('      - Get public URL');\nconsole.log('');\nconsole.log('   2. Update video_jobs table in Supabase:');\nconsole.log('      UPDATE video_jobs SET');\nconsole.log('        status = \"completed\",');\nconsole.log('        video_url = <supabase_storage_url>,');\nconsole.log('        progress_percentage = 100,');\nconsole.log('        completed_at = NOW()');\nconsole.log('      WHERE job_id = <job_id>');\nconsole.log('');\nconsole.log('   3. Handle errors with credit refunds:');\nconsole.log('      - If any step fails, call refund_credits() function');\nconsole.log('      - Update job status to \"failed\"');\nconsole.log('      - Log error details');\n\nreturn [{\n  json: {\n    success: false,\n    status: 'upload_pending',\n    progress: 95,\n    placeholderNote: 'Supabase upload and job completion not implemented yet.',\n    implementationNeeded: [\n      'Upload final video to Supabase Storage',\n      'Update video_jobs table with video_url and status=completed',\n      'Implement error handling with credit refunds',\n      'Add logging and monitoring'\n    ]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [6480, 400],
+      "id": "supabase-upload-placeholder",
+      "name": "SUPABASE UPLOAD PLACEHOLDER"
+    }
+  ],
+  "connections": {
+    "Video Requirements Calculator": {
+      "main": [[{"node": "Scene Prompts Generator", "type": "main", "index": 0}]]
+    },
+    "Scene Prompts Generator": {
+      "main": [[{"node": "Parse Scene Prompts", "type": "main", "index": 0}]]
+    },
+    "Parse Scene Prompts": {
+      "main": [[{"node": "Loop Prep", "type": "main", "index": 0}]]
+    },
+    "Loop Prep": {
+      "main": [[{"node": "Split Scenes", "type": "main", "index": 0}]]
+    },
+    "Split Scenes": {
+      "main": [[{"node": "Generate Scene Image", "type": "main", "index": 0}]]
+    },
+    "Generate Scene Image": {
+      "main": [[{"node": "Wait Scene", "type": "main", "index": 0}]]
+    },
+    "Wait Scene": {
+      "main": [[{"node": "Get Scene Result", "type": "main", "index": 0}]]
+    },
+    "Get Scene Result": {
+      "main": [[{"node": "Check Scene Status", "type": "main", "index": 0}]]
+    },
+    "Check Scene Status": {
+      "main": [
+        [{"node": "Wait Scene", "type": "main", "index": 0}],
+        [{"node": "Extract Scene Image", "type": "main", "index": 0}]
+      ]
+    },
+    "Extract Scene Image": {
+      "main": [[{"node": "Aggregate All Scenes", "type": "main", "index": 0}]]
+    },
+    "Aggregate All Scenes": {
+      "main": [[{"node": "Script Compilation", "type": "main", "index": 0}]]
+    },
+    "Script Compilation": {
+      "main": [[{"node": "VIDEO GENERATION PLACEHOLDER", "type": "main", "index": 0}]]
+    },
+    "VIDEO GENERATION PLACEHOLDER": {
+      "main": [[{"node": "FFMPEG ASSEMBLY PLACEHOLDER", "type": "main", "index": 0}]]
+    },
+    "FFMPEG ASSEMBLY PLACEHOLDER": {
+      "main": [[{"node": "SUPABASE UPLOAD PLACEHOLDER", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
