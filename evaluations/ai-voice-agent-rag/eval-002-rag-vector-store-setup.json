@@ -1,0 +1,32 @@
+{
+  "id": "voice-rag-002",
+  "skills": ["n8n-ai-voice-agent-rag"],
+  "query": "How do I set up a vector store in n8n for RAG? I want to store website content and retrieve it when my AI agent needs it.",
+  "expected_behavior": [
+    "Explains RAG architecture: chunk → embed → store → retrieve",
+    "Recommends Token Text Splitter with ~400 tokens and 50 overlap",
+    "Recommends OpenAI text-embedding-3-small as best value embedding model",
+    "Compares vector store options: Supabase, Pinecone, Qdrant",
+    "Explains the critical rule: same embedding model for insert AND retrieve",
+    "Shows insert mode configuration for ingestion workflow",
+    "Shows retrieve mode configuration for agent workflow",
+    "References RAG_SETUP.md for detailed setup guides"
+  ],
+  "baseline_without_skill": {
+    "likely_issues": [
+      "May not know specific n8n vector store node types",
+      "Won't mention embedding consistency rule",
+      "Won't provide specific chunk size recommendations",
+      "May not explain insert vs retrieve mode difference"
+    ]
+  },
+  "with_skill_expected": {
+    "improvements": [
+      "Specific nodeType IDs for vector store, embeddings, text splitter",
+      "Complete Supabase pgvector SQL setup included",
+      "Embedding consistency warning emphasized",
+      "Prospect data isolation strategies explained",
+      "AI connection types (ai_embedding, ai_vectorStore, ai_textSplitter) specified"
+    ]
+  }
+}

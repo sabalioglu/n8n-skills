@@ -1,0 +1,31 @@
+{
+  "id": "voice-rag-005",
+  "skills": ["n8n-ai-voice-agent-rag"],
+  "query": "How do I connect Vapi.ai to my n8n workflow so my AI agent can handle phone calls? I want it to use the prospect knowledge base I already set up.",
+  "expected_behavior": [
+    "Explains how Vapi handles STT/TTS while n8n handles AI logic",
+    "Shows Vapi assistant configuration with serverUrl pointing to n8n webhook",
+    "Configures n8n webhook to receive Vapi server messages",
+    "Handles different Vapi message types (function-call, assistant-request, status-update)",
+    "Shows correct response format for Vapi (results array with toolCallId)",
+    "Connects AI Agent with Vector Store Tool for prospect knowledge retrieval",
+    "References VOICE_AGENT.md Vapi section for complete setup"
+  ],
+  "baseline_without_skill": {
+    "likely_issues": [
+      "Won't know Vapi webhook message format",
+      "Won't know correct Vapi response format",
+      "May not handle different message types",
+      "Won't know how to configure Vapi assistant with custom server URL"
+    ]
+  },
+  "with_skill_expected": {
+    "improvements": [
+      "Complete Vapi + n8n workflow with message routing",
+      "Correct Vapi response format for function-call and assistant-request",
+      "Switch node for handling multiple message types",
+      "Voice-optimized AI Agent configuration",
+      "End-to-end flow: Vapi call → n8n webhook → AI Agent (RAG) → Vapi response"
+    ]
+  }
+}

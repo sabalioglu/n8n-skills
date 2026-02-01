@@ -1,0 +1,32 @@
+{
+  "id": "voice-rag-003",
+  "skills": ["n8n-ai-voice-agent-rag"],
+  "query": "I want to build a voice agent that knows about my prospect's company. It should use information from their website during the phone call. How do I build this in n8n?",
+  "expected_behavior": [
+    "Describes the 3-phase architecture: Ingest → Store → Voice Retrieve",
+    "Configures AI Agent with Vector Store Tool for RAG retrieval",
+    "Uses ai_tool connection for Vector Store Tool (not main port)",
+    "Includes Window Buffer Memory for per-call conversation context",
+    "Provides voice-optimized system prompt (2-3 sentence responses)",
+    "Recommends voice platform (Vapi or Bland.ai)",
+    "Shows webhook configuration for voice platform callbacks",
+    "References VOICE_AGENT.md for platform-specific setup"
+  ],
+  "baseline_without_skill": {
+    "likely_issues": [
+      "Won't know about voice platform integration specifics",
+      "May not optimize AI responses for voice (too long, formatted)",
+      "Won't mention per-call memory with call_id session key",
+      "May connect vector store tool to wrong port"
+    ]
+  },
+  "with_skill_expected": {
+    "improvements": [
+      "Complete voice agent workflow: Webhook → AI Agent (RAG) → Format → Respond",
+      "Voice-specific system prompt with conversation rules",
+      "Response post-processing to remove markdown/formatting for speech",
+      "Per-call memory using call_id as session key",
+      "Latency optimization recommendations (fast model, topK: 3-5)"
+    ]
+  }
+}

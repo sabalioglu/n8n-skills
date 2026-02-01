@@ -1,0 +1,31 @@
+{
+  "id": "voice-rag-004",
+  "skills": ["n8n-ai-voice-agent-rag"],
+  "query": "I'm building a voice agent for multiple prospects. How do I make sure the AI only uses the right prospect's data during each call and doesn't mix up information between prospects?",
+  "expected_behavior": [
+    "Explains prospect data isolation as a critical requirement",
+    "Describes namespace-based isolation (Pinecone) using prospect_id",
+    "Describes metadata filtering (Supabase/Qdrant) using prospect_id in metadata",
+    "Shows how to filter vector store retrieval by prospect_id",
+    "Mentions cleanup/re-ingestion per prospect without affecting others",
+    "Recommends scale-appropriate strategy (metadata for <50, namespace for 50-500)",
+    "References RAG_SETUP.md prospect data isolation section"
+  ],
+  "baseline_without_skill": {
+    "likely_issues": [
+      "May not think about cross-prospect data contamination",
+      "Won't know Pinecone namespace pattern",
+      "Won't provide Supabase filter function SQL",
+      "May not address cleanup per prospect"
+    ]
+  },
+  "with_skill_expected": {
+    "improvements": [
+      "Three isolation strategies with pros/cons",
+      "Scale-based recommendations",
+      "Supabase SQL function for filtered retrieval",
+      "Pinecone namespace configuration code",
+      "Per-prospect cleanup workflow pattern"
+    ]
+  }
+}

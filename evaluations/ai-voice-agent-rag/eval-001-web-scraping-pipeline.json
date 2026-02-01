@@ -1,0 +1,31 @@
+{
+  "id": "voice-rag-001",
+  "skills": ["n8n-ai-voice-agent-rag"],
+  "query": "I need to scrape a prospect's website and store the content for my AI to use later. How do I set this up in n8n?",
+  "expected_behavior": [
+    "Recommends HTTP Request node to fetch website HTML",
+    "Recommends HTML Extract node with CSS selectors for content extraction",
+    "Includes a Code node for cleaning extracted text (removing boilerplate, normalizing whitespace)",
+    "Mentions priority pages to scrape: about, products/services, pricing",
+    "Explains multi-page scraping with link discovery",
+    "Recommends rate limiting with Wait nodes between page fetches",
+    "References WEB_SCRAPING.md for detailed extraction strategies"
+  ],
+  "baseline_without_skill": {
+    "likely_issues": [
+      "May not know about HTML Extract node",
+      "Won't mention priority page selection",
+      "Won't include content cleaning patterns",
+      "May not address rate limiting or error handling"
+    ]
+  },
+  "with_skill_expected": {
+    "improvements": [
+      "Complete pipeline: Webhook → HTTP Request → HTML Extract → Code → Vector Store",
+      "Specific CSS selectors for content areas (main, article, .content)",
+      "Content cleaning code with boilerplate removal",
+      "Multi-page strategy with link discovery code",
+      "Quality checks and deduplication"
+    ]
+  }
+}
